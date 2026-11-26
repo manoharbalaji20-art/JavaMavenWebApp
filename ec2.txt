@@ -1,0 +1,73 @@
+RUN JavaMavenWebApp ON AWS EC2 WITH DOCKER
+===========================================
+ 
+Run these commands in the EC2 terminal (ubuntu@ip-172-31-29-85).
+The repo already contains target/JavaMavenWebApp.war, so no Maven build is needed.
+ 
+ 
+STEP 1: Confirm the WAR is on EC2
+---------------------------------
+cd ~/JavaMavenWebApp
+ls -lh target/JavaMavenWebApp.war
+ 
+ 
+STEP 2: Create the Dockerfile
+-----------------------------
+cat > Dockerfile <<'EOF'
+FROM tomcat:9.0-jdk17
+COPY target/JavaMavenWebApp.war /usr/local/tomcat/webapps/
+EOF
+ 
+ 
+STEP 3: Build the image and run the container
+---------------------------------------------
+sudo docker build -t javamavenwebapp .
+sudo docker run -d --name javamavenwebapp -p 8085:8080 javamavenwebapp
+ 
+(8085:8080 means EC2 port 8085 goes to Tomcat's port 8080 inside the container)
+ 
+ 
+STEP 4: Test on the instance (wait about 10 seconds first)
+----------------------------------------------------------
+curl http://localhost:8085/JavaMavenWebApp/
+ 
+Expected output: Hello World!
+ 
+ 
+STEP 5: Open in your browser
+----------------------------
+1. Allow inbound traffic in AWS:
+   EC2 console -> your instance -> Security tab -> click the security group
+   -> Edit inbound rules -> Add rule:
+   Type: Custom TCP, Port: 8085, Source: 0.0.0.0/0 -> Save
+ 
+2. Visit:
+   http://54.172.211.214:8085/JavaMavenWebApp/
+ 
+ 
+DAILY USE (one command, like app-demo)
+--------------------------------------
+sudo docker start javamavenwebapp
+sudo docker stop javamavenwebapp
+ 
+ 
+TROUBLESHOOTING
+---------------
+- "port is already allocated":
+    sudo docker ps
+  Stop the container using 8085, or run with -p 8086:8080 instead.
+ 
+- App errors or blank page:
+    sudo docker logs javamavenwebapp
+ 
+- 404 error:
+  The URL path must match the WAR name without ".war"
+  (JavaMavenWebApp.war -> /JavaMavenWebApp/).
+ 
+- After changing the WAR, recreate the container:
+    sudo docker rm -f javamavenwebapp
+    sudo docker build -t javamavenwebapp .
+    sudo docker run -d --name javamavenwebapp -p 8085:8080 javamavenwebapp
+ 
+- Browser times out but curl works on EC2:
+  The security group rule for port 8085 is missing (Step 5).
